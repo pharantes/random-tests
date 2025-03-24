@@ -1,13 +1,24 @@
-
-export default function handler(req, res) {
-
+export default async function handler(req, res) {
   if (req.method === 'POST') {
-    const { eventId } = req.query;
-    const formData = req.body;
-    console.log('Received form data for event', eventId);
-    console.log('Form data:', formData);
-    return res.status(200).json({ message: 'Form submitted successfully' });
-  }
+    try {
+      const { eventId } = req.query;
+      const data = req.body;
 
-  return res.status(405).json({ message: 'Method not allowed' });
+      console.log('Received submission for event:', eventId);
+      console.log('Submission data:', JSON.stringify(data, null, 2));
+      console.log('Image URL:', data.imageUrl || 'null');
+
+      return res.status(200).json({
+        success: true,
+        eventId,
+        receivedData: data,
+      });
+    } catch (error) {
+      console.error('Storage Error:', error);
+      return res.status(500).json({
+        error: error.message || 'Server error'
+      });
+    }
+  }
+  return res.status(405).json({ error: 'Method not allowed' });
 }
