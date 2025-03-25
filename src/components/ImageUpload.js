@@ -21,6 +21,12 @@ const ImageUpload = forwardRef(({ label }, ref) => {
         const file = fileInputRef.current?.files?.[0];
         if (!file) return null;
 
+        console.log('Selected file:', {
+            name: file.name,
+            type: file.type,
+            size: file.size
+        });
+
         try {
             const formData = new FormData();
             formData.append('image', file);
@@ -30,16 +36,24 @@ const ImageUpload = forwardRef(({ label }, ref) => {
                 body: formData
             });
 
+            const result = await response.json();
+
             if (!response.ok) {
-                const error = await response.text();
-                console.error('Upload Error:', error);
-                return null;
+                throw new Error(result.error || 'Image upload failed');
             }
 
-            return await response.json();
+            if (!result.imageUrl) {
+                throw new Error('Server error: No image URL returned');
+            }
+
+            return result;
+
         } catch (error) {
-            console.error('Upload Failed:', error.message);
-            return null;
+            console.error('Upload Failed:', {
+                message: error.message,
+                ...(error.details && { details: error.details })
+            });
+            throw error;
         }
     }, []);
 
@@ -52,7 +66,9 @@ const ImageUpload = forwardRef(({ label }, ref) => {
 
     const handleFileChange = (e) => {
         const file = e.target.files[0];
-        if (file) setPreview(URL.createObjectURL(file));
+        if (file) {
+            setPreview(URL.createObjectURL(file));
+        }
     };
 
     useImperativeHandle(ref, () => ({
@@ -67,8 +83,9 @@ const ImageUpload = forwardRef(({ label }, ref) => {
                 type="file"
                 ref={fileInputRef}
                 onChange={handleFileChange}
-                accept="image/*"
-                style={{ display: 'block', margin: '10px 0' }}
+                accept="image/jpeg, image/png"
+                multiple
+                aria-label="Select an image file (JPEG or PNG)"
             />
             {preview && (
                 <img
@@ -78,9 +95,9 @@ const ImageUpload = forwardRef(({ label }, ref) => {
                         maxWidth: '200px',
                         height: 'auto',
                         marginTop: '10px',
-                        border: '1px solid #ddd',
                         borderRadius: '4px'
                     }}
+                    loading="lazy"
                 />
             )}
         </div>

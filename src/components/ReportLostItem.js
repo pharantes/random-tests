@@ -1,11 +1,10 @@
-// components/ReportLostItem.js
 import { useState, useRef } from 'react';
 import { useRouter } from 'next/router';
 import ImageUpload from './ImageUpload';
 
 const ITEM_TYPES = ['phone', 'keys', 'bag', 'jacket', 'wallet', 'laptop', 'documents'];
 
-const ReportLostItem = () => {
+const ReportLostItem = function () {
     const router = useRouter();
     const { eventId } = router.query;
     const [isSubmitting, setIsSubmitting] = useState(false);
@@ -27,7 +26,6 @@ const ReportLostItem = () => {
                 ...data,
                 imageUrl: imageResult?.imageUrl || null
             };
-
             console.log('Final Payload:', payload);
 
             const response = await fetch(`/api`, {

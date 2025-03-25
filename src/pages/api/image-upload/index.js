@@ -1,11 +1,8 @@
-// pages/api/image-upload.js
 import { IncomingForm } from 'formidable';
 import { uploadImage } from '../../../../lib/kraken';
 
 export const config = {
-    api: {
-        bodyParser: false
-    }
+    api: { bodyParser: false }
 };
 
 export default async function handler(req, res) {
@@ -13,32 +10,60 @@ export default async function handler(req, res) {
         return res.status(405).json({ error: 'Method not allowed' });
     }
 
+    let uploadedFile;
     try {
-        const form = new IncomingForm();
-        form.maxFileSize = 5 * 1024 * 1024; // 5MB
-        form.keepExtensions = true;
+        const form = new IncomingForm({
+            keepExtensions: true,
+            multiples: false
+        });
 
-        const [_, files] = await new Promise((resolve, reject) => {
+        const [fields, files] = await new Promise((resolve, reject) => {
             form.parse(req, (err, fields, files) => {
-                if (err) reject(err);
-                resolve([fields, files]);
+                if (err) return reject(err);
+                resolve([
+                    fields,
+                    { image: files.image ? [files.image] : [] }
+                ]);
             });
         });
 
-        console.log('Received upload request with files:', files);
-
-        if (!files.image) {
-            return res.status(400).json({ error: 'No image provided' });
+        if (!files.image?.length || !files.image[0]?.filepath) {
+            return res.status(400).json({ error: 'No valid file uploaded' });
         }
 
-        const result = await uploadImage(files.image.filepath);
-        console.log('Kraken upload result:', result);
+        uploadedFile = files.image[0];
+        console.log('File upload details:', {
+            path: uploadedFile.filepath,
+            name: uploadedFile.originalFilename,
+            size: uploadedFile.size,
+            type: uploadedFile.mimetype
+        });
+
+        const result = await uploadImage(uploadedFile.filepath);
+
+        if (!result?.imageUrl) {
+            throw new Error('Image processing failed - no URL returned');
+        }
 
         return res.status(200).json(result);
+
     } catch (error) {
-        console.error('Image Upload API Error:', error);
+
+        console.error('Image Upload Error:', {
+            message: error.message,
+            stack: error.stack,
+            file: uploadedFile?.filepath
+        });
+
         return res.status(500).json({
-            error: error.message || 'Internal server error'
+            error: error.message,
+            ...(process.env.NODE_ENV === 'development' && {
+                details: {
+                    stack: error.stack,
+                    filePath: uploadedFile?.filepath,
+                    credentialsConfigured: !!process.env.KRAKEN_API_KEY
+                }
+            })
         });
     }
 }
